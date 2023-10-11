@@ -40,11 +40,13 @@ export async function visitorLogin(req, res) {
         message: 'No name error.'
       })
     } else {
+      const uid = nickname + Date.now().toString();
       res.send({
         status: 0,
         message: 'Login success.',
         data: {
-          visitorId: nickname + Date.now().toString()
+          visitorId: uid,
+          nickname: nickname
         }
       })
     }
@@ -52,7 +54,7 @@ export async function visitorLogin(req, res) {
     res.send({
       state: -1,
       message: 'Login failed.',
-      details: err
+      details: JSON.stringify(err)
     })
   }
 }
