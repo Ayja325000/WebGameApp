@@ -43,7 +43,13 @@ function originIsAllowed(origin) {
   // put logic here to detect whether the specified origin is allowed.
   return true;
 }
-const connections = new WeakSet();
+
+// WebSocket转发表，由http请求更改，定义成全局以便修改
+global.WebSocketRetransmission = new Map();
+global.WebSocketRetransmissionReverse = new Map();
+const retransmission = global.WebSocketRetransmission;
+const clients = new Map();
+const clientsID = new Map();
 wsServer.on('request', function (request) {
   // if (!originIsAllowed(request.origin)) {
   //   // Make sure we only accept requests from an allowed origin
@@ -52,13 +58,33 @@ wsServer.on('request', function (request) {
   //   return;
   // }
   try {
-    var connection = request.accept('echo-protocol', request.origin);
+    const connection = request.accept('echo-protocol', request.origin);
     console.log((new Date()) + request.origin + ' Connection accepted.');
     connection.on('message', function (message) {
       console.log('Received Message Data: ' + JSON.stringify(message));
       if (message.type === 'utf8') {
         console.log('Received Message: ' + message.utf8Data);
-        connection.sendUTF(message.utf8Data);
+        let data = message.utf8Data;
+        console.log('Retransmission Map:', Array.from(retransmission.entries()));
+        try {
+          data = JSON.parse(message.utf8Data);
+          if (data.userId) {
+            console.log('ClientID: ', data.userId);
+            clients.set(data.userId, connection);
+            clientsID.set(connection, data);
+            console.log('clients', Array.from(clients.keys()));
+          }
+          console.log('To: ', retransmission.get(data.userId));
+          (retransmission.get(data.userId) ?? []).forEach(toId => {
+            const connect = clients.get(toId);
+            if (connect) {
+              connect.sendUTF(JSON.stringify(data));
+            }
+          })
+        } catch (e) {
+          console.warn('Error:', e);
+        }
+        // connection.sendUTF(JSON.stringify(data));
       } else if (message.type === 'binary') {
         console.log('Received Binary Message of ' + message.binaryData.length + ' bytes');
         connection.sendBytes(message.binaryData);
@@ -67,6 +93,8 @@ wsServer.on('request', function (request) {
       }
     });
     connection.on('close', function (reasonCode, description) {
+      clients.delete(clientsID.get(connection));
+      clientsID.delete(connection);
       console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' disconnected.');
     });
   } catch (e) {
