@@ -5,6 +5,7 @@ import userRouter from './router/user_router.js';
 // import cookieParser from "cookie-parser";
 import { server as WebSocketServer } from 'websocket';
 import http from 'http';
+import redis from './db/redis.js';
 
 /////////////// API服务///////////////////////////////////////
 const app = express();
@@ -20,7 +21,6 @@ app.listen(port, () => {
 });
 
 app.use('/api', userRouter);
-
 
 ////////////////// WebSocket服务 /////////////////////////////////////////
 
