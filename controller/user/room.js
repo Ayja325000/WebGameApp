@@ -18,8 +18,9 @@ const userExitRoom = async (roomId, userId) => {
 export async function createRoom(req, res) {
   try {
     const reqBody = req.body;
-    const { userId } = reqBody;
-    const roomId = 'room' + Date.now().toString().slice(-9);
+    console.log(reqBody);
+    const { userId, gameId } = reqBody;
+    const roomId = 'room_' + gameId + '_' + Date.now().toString().slice(-8);
     await userJoinRoom(roomId, userId);
     res.send({
       status: 0,
@@ -53,7 +54,9 @@ export async function searchRoom(req, res) {
         message: 'search room success.',
         data: {
           roomId: roomId,
-          members: roomMembers
+          members: roomMembers,
+          views: ['10005', '10006', '10007', '10008', '10009'],
+          gameId: roomId.slice(5, -9) ?? ''
         }
       })
     }
