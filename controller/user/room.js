@@ -1,6 +1,11 @@
 import redis from '../../db/redis.js';
 
 const userJoinRoom = async (roomId, userId) => {
+  const currentRoomId = await redis.get(`${userId}:roomId`);
+  if (currentRoomId) {
+    await redis.sRem(currentRoomId, userId);
+  }
+  redis.set(`${userId}:roomId`, roomId);
   const res = await redis.sAdd(roomId, userId);
   return res;
 }
@@ -22,6 +27,7 @@ export async function createRoom(req, res) {
     const { userId, gameId } = reqBody;
     const roomId = 'room_' + gameId + '_' + Date.now().toString().slice(-8);
     await userJoinRoom(roomId, userId);
+    await redis.set(`${roomId}:creater`, userId);
     res.send({
       status: 0,
       message: 'Create room success.',
@@ -43,6 +49,7 @@ export async function searchRoom(req, res) {
     const reqBody = req.body;
     const { roomId } = reqBody;
     const roomMembers = await redis.sMembers(roomId);
+    const creater = await redis.get(`${roomId}:creater`);
     if (roomMembers.length === 0) {
       res.send({
         status: -1,
@@ -55,8 +62,9 @@ export async function searchRoom(req, res) {
         data: {
           roomId: roomId,
           members: roomMembers,
-          views: ['10005', '10006', '10007', '10008', '10009'],
-          gameId: roomId.slice(5, -9) ?? ''
+          views: [],
+          gameId: roomId.slice(5, -9) ?? '',
+          creater: creater
         }
       })
     }

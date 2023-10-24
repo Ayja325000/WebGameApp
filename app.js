@@ -44,10 +44,6 @@ function originIsAllowed(origin) {
   return true;
 }
 
-// WebSocket转发表，由http请求更改，定义成全局以便修改
-global.WebSocketRetransmission = new Map();
-global.WebSocketRetransmissionReverse = new Map();
-const retransmission = global.WebSocketRetransmission;
 const clients = new Map();
 const clientsID = new Map();
 wsServer.on('request', function (request) {
@@ -59,24 +55,27 @@ wsServer.on('request', function (request) {
   // }
   try {
     const connection = request.accept('echo-protocol', request.origin);
-    console.log((new Date()) + request.origin + ' Connection accepted.');
-    connection.on('message', function (message) {
-      console.log('Received Message Data: ' + JSON.stringify(message));
+    // console.log((new Date()) + request.origin + ' Connection accepted.');
+    connection.on('message', async function (message) {
+      // console.log('Received Message Data: ' + JSON.stringify(message));
       if (message.type === 'utf8') {
-        console.log('Received Message: ' + message.utf8Data);
+        // console.log('Received Message: ' + message.utf8Data);
         let data = message.utf8Data;
-        console.log('Retransmission Map:', Array.from(retransmission.entries()));
         try {
           data = JSON.parse(message.utf8Data);
-          if (data.userId) {
-            console.log('ClientID: ', data.userId);
-            clients.set(data.userId, connection);
+          if (data.uid) {
+            // console.log('ClientID: ', data.uid);
+            clients.set(data.uid, connection);
             clientsID.set(connection, data);
-            console.log('clients', Array.from(clients.keys()));
+            // console.log('clients', Array.from(clients.keys()));
           }
-          console.log('To: ', retransmission.get(data.userId));
-          (retransmission.get(data.userId) ?? []).forEach(toId => {
-            const connect = clients.get(toId);
+          // console.log('uid-room key', `${data.uid}:roomId`);
+          const roomId = await redis.get(`${data.uid}:roomId`);
+          // console.log('trans roomId', roomId);
+          const members = await redis.sMembers(roomId ?? '');
+          // console.log('trans members', members);
+          (members ?? []).forEach(uid => {
+            const connect = clients.get(uid);
             if (connect) {
               connect.sendUTF(JSON.stringify(data));
             }
