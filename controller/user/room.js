@@ -1,21 +1,21 @@
 import redis from '../../db/redis.js';
 
-const userJoinRoom = async (roomId, userId) => {
-  const currentRoomId = await redis.get(`${userId}:roomId`);
+const userJoinRoom = async (roomId, user) => {
+  const currentRoomId = await redis.get(`${user}:roomId`);
   if (currentRoomId) {
-    await redis.sRem(currentRoomId, userId);
+    await redis.sRem(currentRoomId, user);
   }
-  redis.set(`${userId}:roomId`, roomId);
-  const res = await redis.sAdd(roomId, userId);
+  redis.set(`${user}:roomId`, roomId);
+  const res = await redis.sAdd(roomId, user);
   return res;
 }
-const userExitRoom = async (roomId, userId) => {
+const userExitRoom = async (roomId, user) => {
   let memberCnt = (await redis.sMembers(roomId)).length;
   if (memberCnt === 1) {
     const res = await redis.del(roomId);
     return res;
   } else {
-    const res = await redis.sRem(roomId, userId);
+    const res = await redis.sRem(roomId, user);
     return res;
   }
 }
@@ -24,10 +24,10 @@ export async function createRoom(req, res) {
   try {
     const reqBody = req.body;
     console.log(reqBody);
-    const { userId, gameId } = reqBody;
+    const { user, gameId } = reqBody;
     const roomId = 'room_' + gameId + '_' + Date.now().toString().slice(-8);
-    await userJoinRoom(roomId, userId);
-    await redis.set(`${roomId}:creater`, userId);
+    await userJoinRoom(roomId, user);
+    await redis.set(`${roomId}:creater`, user);
     res.send({
       status: 0,
       message: 'Create room success.',
@@ -48,7 +48,7 @@ export async function searchRoom(req, res) {
   try {
     const reqBody = req.body;
     const { roomId } = reqBody;
-    const roomMembers = await redis.sMembers(roomId);
+    const roomMembers = (await redis.sMembers(roomId)).map(val => JSON.parse(val));
     const creater = await redis.get(`${roomId}:creater`);
     if (roomMembers.length === 0) {
       res.send({
@@ -80,8 +80,8 @@ export async function searchRoom(req, res) {
 export async function joinRoom(req, res) {
   try {
     const reqBody = req.body;
-    const { userId, roomId } = reqBody;
-    await userJoinRoom(roomId, userId);
+    const { user, roomId } = reqBody;
+    await userJoinRoom(roomId, user);
     const roomMembers = await redis.sMembers(roomId);
     res.send({
       status: 0,
@@ -103,8 +103,8 @@ export async function joinRoom(req, res) {
 export async function exitRoom(req, res) {
   try {
     const reqBody = req.body;
-    const { userId, roomId } = reqBody;
-    await userExitRoom(roomId, userId);
+    const { user, roomId } = reqBody;
+    await userExitRoom(roomId, user);
     res.send({
       status: 0,
       message: 'exit room success.',

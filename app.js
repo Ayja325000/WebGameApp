@@ -63,19 +63,19 @@ wsServer.on('request', function (request) {
         let data = message.utf8Data;
         try {
           data = JSON.parse(message.utf8Data);
-          if (data.uid) {
+          if (data.userInfo) {
             // console.log('ClientID: ', data.uid);
-            clients.set(data.uid, connection);
-            clientsID.set(connection, data);
+            clients.set(data.userInfo, connection);
+            clientsID.set(connection, data.userInfo);
             // console.log('clients', Array.from(clients.keys()));
           }
           // console.log('uid-room key', `${data.uid}:roomId`);
-          const roomId = await redis.get(`${data.uid}:roomId`);
+          const roomId = await redis.get(`${data.userInfo}:roomId`);
           // console.log('trans roomId', roomId);
           const members = await redis.sMembers(roomId ?? '');
           // console.log('trans members', members);
-          (members ?? []).forEach(uid => {
-            const connect = clients.get(uid);
+          (members ?? []).forEach(user => {
+            const connect = clients.get(user);
             if (connect) {
               connect.sendUTF(JSON.stringify(data));
             }
